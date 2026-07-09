@@ -26,14 +26,24 @@
 
 | 层级 | 技术 | 用途 |
 |------|------|------|
-| TUI 框架 | Textual 2.8+ | 终端 UI 渲染与事件处理 |
-| LLM 客户端 | Anthropic SDK + OpenAI SDK | 多提供商流式对话 |
-| 协议支持 | Anthropic / OpenAI / Chat Completions | 三协议统一抽象 |
-| 消息序列化 | 自定义转换器 | Message 对象 ↔ 提供商格式 |
-| 配置管理 | YAML 多层合并 | 全局 → 项目 → 本地覆盖 |
-| 异步引擎 | asyncio | 全链路异步非阻塞 |
-| 会话存储 | 文件系统 JSON | .owlcode/sessions/ |
-| 记忆召回 | 关键词 + 嵌入匹配 | 自动注入系统提醒 |
+| 语言 | Python 3.11+ | `asyncio` 全链路异步 |
+| TUI 框架 | Textual 2.8+ | 终端 UI 渲染、事件处理、CSS 布局 |
+| Agent 范式 | ReAct（Reasoning + Acting） | 思考 → 工具调用 → 观察 → 循环 |
+| Agent 架构 | Multi-Agent | Lead + Teammate 多代理协作 |
+| LLM 协议 | Anthropic Messages / OpenAI Responses / Chat Completions | 三协议统一抽象 |
+| LLM SDK | Anthropic SDK / OpenAI SDK | 多提供商流式对话、Tool Use |
+| 工具系统 | Tool Registry + Deferred Tools | 注册表模式 + 延迟加载减少 Token |
+| 技能系统 | Skill（Markdown + YAML Frontmatter） | 可扩展的自定义工具与斜杠命令 |
+| MCP | Model Context Protocol | 外部 AI 客户端工具集成 |
+| 序列化 | 自定义转换器 | Message ↔ 提供商特定格式 |
+| 配置管理 | YAML 多层合并 | `~/.owlcode/` → `.owlcode/` → `config.local.yaml` |
+| 会话存储 | JSON 文件系统 | `.owlcode/sessions/` 会话持久化 |
+| 记忆召回 | 关键词匹配 + 嵌入向量 | 自动提取 + 上下文注入 |
+| Prompt 缓存 | Content Replacement + Surrogate ID | 替换可变内容保持 Cache Hit |
+| 子代理 | Agent Fork + Worktree 隔离 | 异步分派 + Git 工作树隔离 |
+| 团队后端 | in-process / tmux / iTerm2 | 三种进程孵化方式 |
+| 权限控制 | RuleEngine + PathSandbox + DangerousDetector | 四模式权限体系 |
+| Hooks | Shell Executor + Regex Condition | 生命周期事件钩子 |
 | 构建工具 | Hatchling + uv | 构建、安装、依赖管理 |
 
 ## 快速开始
