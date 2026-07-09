@@ -1,5 +1,7 @@
 # OwlCode
 
+OwlCode 是一款轻量级终端 Coding Agent，基于 ReAct 与 Plan Mode 双模式驱动 LLM 自主完成编程任务。
+
 ```
  ┌────┐
  │◉ ◉│   轻量级终端 Coding Agent
