@@ -1,0 +1,126 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
+
+from pydantic import BaseModel, Field
+
+from owlcode.tools.base import Tool, ToolResult
+from owlcode.worktree.changes import count_worktree_changes
+
+if TYPE_CHECKING:
+    from owlcode.worktree.manager import WorktreeManager
+
+
+class ExitWorktreeParams(BaseModel):
+    action: str = Field(
+        description='"keep" leaves the worktree and branch on disk; "remove" deletes both.',
+    )
+    discard_changes: Optional[bool] = Field(
+        default=None,
+        description=(
+            'Required true when action is "remove" and the worktree has '
+            "uncommitted files or unmerged commits. "
+            "The tool will refuse and list them otherwise."
+        ),
+    )
+
+
+class ExitWorktreeTool(Tool):
+    """退出由 EnterWorktree 创建的 worktree 会话。
+
+    可选择保留（keep）或删除（remove）worktree，若存在未提交修改需要确认。
+    """
+
+    name = "ExitWorktree"
+    description = (
+        "Exits a worktree session created by EnterWorktree and restores "
+        "the original working directory"
+    )
+    params_model = ExitWorktreeParams
+    category = "command"
+    should_defer = True
+
+
+    def __init__(self, worktree_manager: WorktreeManager) -> None:
+        self._manager = worktree_manager
+
+
+    async def execute(self, params: ExitWorktreeParams) -> ToolResult:
+        """退出当前 worktree 会话。
+
+        Args:
+            params: 包含 action（"keep" 或 "remove"）和可选的
+                   discard_changes（是否丢弃未提交修改）的 ExitWorktreeParams。
+
+        Returns:
+            ToolResult，操作成功返回确认信息，有未提交修改且未确认时返回错误。
+        """
+        session = self._manager.get_current_session()
+        if session is None:
+            return ToolResult(
+                output=(
+                    "No-op: there is no active EnterWorktree session to exit. "
+                    "This tool only operates on worktrees created by EnterWorktree "
+                    "in the current session — it will not touch worktrees created "
+                    "manually or in a previous session. No filesystem changes were made."
+                ),
+                is_error=True,
+            )
+
+        action = params.action
+        if action not in ("keep", "remove"):
+            return ToolResult(
+                output=f'Invalid action "{action}". Must be "keep" or "remove".',
+                is_error=True,
+            )
+
+        discard = params.discard_changes or False
+
+        if action == "remove" and not discard:
+            changes = count_worktree_changes(
+                session.worktree_path, session.original_head_commit
+            )
+            if changes.uncommitted > 0 or changes.new_commits > 0:
+                parts = []
+                if changes.uncommitted > 0:
+                    word = "file" if changes.uncommitted == 1 else "files"
+                    parts.append(f"{changes.uncommitted} uncommitted {word}")
+                if changes.new_commits > 0:
+                    word = "commit" if changes.new_commits == 1 else "commits"
+                    parts.append(f"{changes.new_commits} {word}")
+                return ToolResult(
+                    output=(
+                        f"Worktree has {' and '.join(parts)}. "
+                        "Removing will discard this work permanently. "
+                        "Confirm with the user, then re-invoke with "
+                        'discard_changes: true — or use action: "keep" '
+                        "to preserve the worktree."
+                    ),
+                    is_error=True,
+                )
+
+        worktree_path = session.worktree_path
+        original_cwd = session.original_cwd
+        wt_name = session.worktree_name
+
+        try:
+            await self._manager.exit(wt_name, action=action, discard_changes=discard)
+        except Exception as e:
+            return ToolResult(
+                output=f"Error exiting worktree: {e}", is_error=True
+            )
+
+        if action == "keep":
+            return ToolResult(
+                output=(
+                    f"Exited worktree. Your work is preserved at {worktree_path}. "
+                    f"Session is now back in {original_cwd}."
+                )
+            )
+
+        return ToolResult(
+            output=(
+                f"Exited and removed worktree at {worktree_path}. "
+                f"Session is now back in {original_cwd}."
+            )
+        )
